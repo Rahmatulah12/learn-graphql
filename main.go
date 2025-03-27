@@ -298,7 +298,7 @@ func connectDatabase() (*sql.DB, error) {
 	conn := mysql.Config{
 		User:                 os.Getenv("DB_USER"),
 		Passwd:               os.Getenv("DB_PASS"),
-		DBName:               "wec_product",
+		DBName:               os.Getenv("DB_NAME"),
 		Addr:                 fmt.Sprintf("%s:%s", os.Getenv("DB_HOST"), os.Getenv("DB_PORT")),
 		Net:                  "tcp",
 		ParseTime:            true,
