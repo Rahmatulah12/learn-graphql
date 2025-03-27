@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -90,9 +91,63 @@ func main() {
 		},
 	})
 
+	var productPaginationType = graphql.NewObject(graphql.ObjectConfig{
+		Name: "ProductPagination",
+		Fields: graphql.Fields{
+			"page":       &graphql.Field{Type: graphql.Int},
+			"limit":      &graphql.Field{Type: graphql.Int},
+			"totalData":  &graphql.Field{Type: graphql.Int},
+			"totalPages": &graphql.Field{Type: graphql.Int},
+			"data":       &graphql.Field{Type: graphql.NewList(productType)},
+		},
+	})
+
 	var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 		Name: "RootQuery",
 		Fields: graphql.Fields{
+			"products": &graphql.Field{
+				Type: productPaginationType,
+				Args: graphql.FieldConfigArgument{
+					"page":  &graphql.ArgumentConfig{Type: graphql.Int},
+					"limit": &graphql.ArgumentConfig{Type: graphql.Int},
+				},
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					limit := 10
+					page := 1
+
+					if val, ok := p.Args["limit"].(int); ok {
+						limit = val
+					}
+					if val, ok := p.Args["page"].(int); ok && val > 1 {
+						page = val
+					}
+
+					total, err := fetchTotalData(db, ctx)
+					if err != nil {
+						return nil, err
+					}
+
+					d := float64(total) / float64(limit)
+					totalPages := int(math.Ceil(d))
+
+					params := Params{
+						Page:  page,
+						Limit: limit,
+					}
+
+					list, err := fetchList(db, ctx, params)
+					if err != nil {
+						return nil, err
+					}
+					return map[string]interface{}{
+						"data":       list,
+						"page":       page,
+						"limit":      limit,
+						"totalData":  int(total),
+						"totalPages": totalPages,
+					}, nil
+				},
+			},
 			"product": &graphql.Field{
 				Type: productType,
 				Args: graphql.FieldConfigArgument{
@@ -110,36 +165,6 @@ func main() {
 						return data, nil
 					}
 					return nil, nil
-				},
-			},
-			"products": &graphql.Field{
-				Type: graphql.NewList(productType),
-				Args: graphql.FieldConfigArgument{
-					"page":  &graphql.ArgumentConfig{Type: graphql.Int},
-					"limit": &graphql.ArgumentConfig{Type: graphql.Int},
-				},
-				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					limit := 10
-					page := 1
-
-					if p.Args["limit"] != nil {
-						limit = p.Args["limit"].(int)
-					}
-
-					if p.Args["page"] != nil {
-						page = p.Args["page"].(int)
-					}
-
-					params := Params{
-						Page:  page,
-						Limit: limit,
-					}
-
-					list, err := fetchList(db, ctx, params)
-					if err != nil {
-						return nil, err
-					}
-					return list, nil
 				},
 			},
 		},
@@ -364,6 +389,29 @@ func fetchList(db *sql.DB, ctx context.Context, params Params) ([]*ListEntity, e
 
 	fmt.Println("waktu mulai :", now.Format("2006-01-02 15:04:05"), "waktu selesai:", time.Now().Format("2006-01-02 15:04:05"))
 	return list, nil
+}
+
+func fetchTotalData(db *sql.DB, ctx context.Context) (int64, error) {
+	now := time.Now()
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	query := "SELECT count(id) from products"
+
+	var totalData int64
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return totalData, err
+	}
+
+	err = stmt.QueryRowContext(ctx).Scan(&totalData)
+
+	if err != nil {
+		return totalData, err
+	}
+	fmt.Println("Total :", totalData)
+	fmt.Println("waktu mulai :", now.Format("2006-01-02 15:04:05"), "waktu selesai:", time.Now().Format("2006-01-02 15:04:05"))
+	return totalData, nil
 }
 
 func fetchOne(db *sql.DB, ctx context.Context, id int) (*ListEntity, error) {
