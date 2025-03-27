@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"test-sql/dotenv"
 	"time"
 
 	helmet "github.com/danielkov/gin-helmet"
@@ -323,7 +324,7 @@ func connectDatabase() (*sql.DB, error) {
 
 func fetchList(db *sql.DB, ctx context.Context, params Params) ([]*ListEntity, error) {
 	now := time.Now()
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(GetInt("CONTEXT_TIMEOUT", 5))*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(dotenv.GetInt("CONTEXT_TIMEOUT", 5))*time.Second)
 	defer cancel()
 
 	offset := (params.Page - 1) * params.Limit
@@ -393,7 +394,7 @@ func fetchList(db *sql.DB, ctx context.Context, params Params) ([]*ListEntity, e
 
 func fetchTotalData(db *sql.DB, ctx context.Context) (int64, error) {
 	now := time.Now()
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(GetInt("CONTEXT_TIMEOUT", 5))*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(dotenv.GetInt("CONTEXT_TIMEOUT", 5))*time.Second)
 	defer cancel()
 
 	query := "SELECT count(id) from products"
@@ -416,7 +417,7 @@ func fetchTotalData(db *sql.DB, ctx context.Context) (int64, error) {
 
 func fetchOne(db *sql.DB, ctx context.Context, id int) (*ListEntity, error) {
 	now := time.Now()
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(dotenv.GetInt("CONTEXT_TIMEOUT", 5))*time.Second)
 	defer cancel()
 
 	query := "SELECT id, ml_id, merchant_id, name, long_desc, short_desc, icon, quota, start_period, end_period from products p where p.id = ? limit 1"
@@ -470,7 +471,7 @@ func fetchOne(db *sql.DB, ctx context.Context, id int) (*ListEntity, error) {
 
 func createProduct(db *sql.DB, ctx context.Context, input *ListModel) (*ListEntity, error) {
 	now := time.Now()
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(GetInt("CONTEXT_TIMEOUT", 5))*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(dotenv.GetInt("CONTEXT_TIMEOUT", 5))*time.Second)
 	defer cancel()
 
 	query := "INSERT INTO products (ml_id, merchant_id, name, long_desc, short_desc, icon, quota, start_period, end_period) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
